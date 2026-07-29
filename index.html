@@ -167,7 +167,7 @@
         const ITEM_HEIGHT = 60;
         let isSpinning = false;
 
-        const REPEATS = 50;
+        const REPEATS = 101; // Нечетное число, чтобы середина была точно началом паттерна
         let items = [];
         for (let i = 0; i < REPEATS; i++) {
             items = items.concat(tricks);
@@ -184,8 +184,9 @@
         }
         renderItems();
 
-        let currentIndex = Math.floor(items.length / 2);
-        currentIndex = currentIndex - (currentIndex % tricks.length);
+        // Ставим строго в середину большого массива
+        const middleBlock = Math.floor(REPEATS / 2);
+        let currentIndex = middleBlock * tricks.length;
 
         function updatePosition(index, animate = false) {
             if (animate) {
@@ -236,45 +237,52 @@
 
             if (tg.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
 
+            // Перед каждым крутом возвращаем индекс в центр без анимации, чтобы элементы никогда не кончались
+            const currentTrickOffset = currentIndex % tricks.length;
+            currentIndex = middleBlock * tricks.length + currentTrickOffset;
+            updatePosition(currentIndex, false);
+
             const randomTrickIndex = Math.floor(Math.random() * tricks.length);
-            const currentMod = currentIndex % tricks.length;
-            let distance = randomTrickIndex - currentMod;
+            let distance = randomTrickIndex - currentTrickOffset;
             if (distance <= 0) distance += tricks.length;
 
             const targetIndex = currentIndex + distance + (tricks.length * 5);
 
-            updatePosition(targetIndex, true);
-
-            let startTime = performance.now();
-            let duration = 3000;
-            let lastStepIndex = currentIndex;
-
-            function ticking(now) {
-                if (!isSpinning) return;
-                let elapsed = now - startTime;
-                let progress = Math.min(elapsed / duration, 1);
-                
-                let easeProgress = 1 - Math.pow(1 - progress, 3);
-                let currentAnimatedIndex = Math.round(currentIndex + (targetIndex - currentIndex) * easeProgress);
-
-                if (currentAnimatedIndex !== lastStepIndex) {
-                    lastStepIndex = currentAnimatedIndex;
-                    playSound();
-                    if (tg.HapticFeedback) tg.HapticFeedback.selectionChanged();
-                }
-
-                if (progress < 1) {
-                    requestAnimationFrame(ticking);
-                }
-            }
-            requestAnimationFrame(ticking);
-
+            // Небольшая задержка, чтобы браузер успел применить сброс позиции без анимации
             setTimeout(() => {
-                currentIndex = targetIndex;
-                isSpinning = false;
-                hint.style.opacity = '1';
-                if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
-            }, duration);
+                updatePosition(targetIndex, true);
+
+                let startTime = performance.now();
+                let duration = 3000;
+                let lastStepIndex = currentIndex;
+
+                function ticking(now) {
+                    if (!isSpinning) return;
+                    let elapsed = now - startTime;
+                    let progress = Math.min(elapsed / duration, 1);
+                    
+                    let easeProgress = 1 - Math.pow(1 - progress, 3);
+                    let currentAnimatedIndex = Math.round(currentIndex + (targetIndex - currentIndex) * easeProgress);
+
+                    if (currentAnimatedIndex !== lastStepIndex) {
+                        lastStepIndex = currentAnimatedIndex;
+                        playSound();
+                        if (tg.HapticFeedback) tg.HapticFeedback.selectionChanged();
+                    }
+
+                    if (progress < 1) {
+                        requestAnimationFrame(ticking);
+                    }
+                }
+                requestAnimationFrame(ticking);
+
+                setTimeout(() => {
+                    currentIndex = targetIndex;
+                    isSpinning = false;
+                    hint.style.opacity = '1';
+                    if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+                }, duration);
+            }, 50);
         }
 
         document.body.addEventListener('click', spin);
