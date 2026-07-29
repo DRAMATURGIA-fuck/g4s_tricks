@@ -45,6 +45,137 @@
             display: block;
         }
 
+        /* Кнопка настроек фильтров вверху справа */
+        .settings-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #ffffff;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 20px;
+            cursor: pointer;
+            z-index: 20;
+            transition: background 0.2s;
+        }
+
+        .settings-btn:active {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        /* Модальное окно фильтров */
+        .modal {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.92);
+            z-index: 30;
+            display: flex;
+            flex-direction: column;
+            padding: 25px 20px;
+            overflow-y: auto;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+
+        .modal.open {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .modal h2 {
+            font-size: 20px;
+            margin-bottom: 15px;
+            font-weight: 700;
+        }
+
+        .filter-section {
+            margin-bottom: 20px;
+        }
+
+        .filter-section h3 {
+            font-size: 14px;
+            color: #888888;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Переключатель языка */
+        .lang-switch-container {
+            display: flex;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 8px;
+            padding: 4px;
+            margin-bottom: 20px;
+        }
+
+        .lang-btn {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: #888888;
+            padding: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .lang-btn.active {
+            background: #ffffff;
+            color: #000000;
+        }
+
+        .filter-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+        }
+
+        .filter-item {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            padding: 10px 12px;
+            border-radius: 8px;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+        }
+
+        .filter-item.disabled {
+            opacity: 0.4;
+            border-color: rgba(255, 255, 255, 0.05);
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .close-modal {
+            margin-top: auto;
+            width: 100%;
+            background: #ffffff;
+            color: #000000;
+            border: none;
+            padding: 14px;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            text-align: center;
+        }
+
         .slot-window {
             position: relative;
             width: 100%;
@@ -118,6 +249,15 @@
             letter-spacing: 0.5px;
             transition: opacity 0.3s;
         }
+
+        .empty-warning {
+            color: #ff555f;
+            font-size: 18px;
+            font-weight: 600;
+            text-align: center;
+            padding: 0 20px;
+            display: none;
+        }
     </style>
 </head>
 <body>
@@ -126,8 +266,35 @@
         <img src="G4S SIMPLE white.png" alt="Logo">
     </div>
 
-    <div class="slot-window">
+    <div class="settings-btn" id="settingsBtn">⚙️</div>
+
+    <div class="modal" id="settingsModal">
+        <h2 id="modalTitle">Настройки</h2>
+
+        <div class="filter-section">
+            <h3 id="langTitle">Язык / Language</h3>
+            <div class="lang-switch-container">
+                <button class="lang-btn" id="langRu" onclick="setLanguage('ru')">Русский</button>
+                <button class="lang-btn" id="langEn" onclick="setLanguage('en')">English</button>
+            </div>
+        </div>
+        
+        <div class="filter-section">
+            <h3 id="familiesTitle">Семейства (Families)</h3>
+            <div class="filter-grid" id="familiesFilter"></div>
+        </div>
+
+        <div class="filter-section">
+            <h3 id="categoriesTitle">Категории (Categories)</h3>
+            <div class="filter-grid" id="categoriesFilter"></div>
+        </div>
+
+        <button class="close-modal" id="closeModal">Готово</button>
+    </div>
+
+    <div class="slot-window" id="slotWindow">
         <div class="slot-reel" id="reel"></div>
+        <div class="empty-warning" id="emptyWarning">Выключены все фильтры! Включи хотя бы что-нибудь в настройках ⚙️</div>
     </div>
 
     <div class="hint" id="hint">Нажми, чтобы крутить</div>
@@ -136,57 +303,272 @@
         const tg = window.Telegram.WebApp;
         tg.expand();
 
-        const tricks = [
+        // Текущий язык (по умолчанию русский или сохраненный)
+        let currentLang = 'ru';
+
+        // База трюков с переводом названий
+        const allTricks = [
             // OTHERS
-            "BUTTERFLY CROSS", "BUTTERFLY", "BACK COBRA", "COBRA", "REVERSE EAGLE", "2 WHEELS EAGLE", "Z-EAGLE",
-            "TOE-TOE SPECIAL", "BRUSH", "HEEL-TOE SPECIAL", "EAGLE / EAGLE CROSS", "SWEEPERS",
-            "EIGHT", "BACK EIGHT", "CRAZY LEGS", "STROLL / BACK STROLL", "CRAZY / DOUBLE CRAZY", "CHAP-CHAP / X", "MEGA SERIES", "NELSON / BACK NELSON",
+            { name: { en: "BUTTERFLY CROSS", ru: "БАБОЧКА КРОСС" }, family: "OTHERS", category: "A" },
+            { name: { en: "BUTTERFLY", ru: "БАБОЧКА" }, family: "OTHERS", category: "B" },
+            { name: { en: "BACK COBRA", ru: "КОБРА СПИНОЙ ВПЕРЕД" }, family: "OTHERS", category: "C" },
+            { name: { en: "COBRA", ru: "КОБРА" }, family: "OTHERS", category: "C" },
+            { name: { en: "REVERSE EAGLE", ru: "ОБРАТНЫЙ ИГЛ" }, family: "OTHERS", category: "C" },
+            { name: { en: "2 WHEELS EAGLE", ru: "НА ДВУХ КОЛЕСАХ ИГЛ" }, family: "OTHERS", category: "C" },
+            { name: { en: "Z-EAGLE", ru: "Z-ИГЛ" }, family: "OTHERS", category: "C" },
+            { name: { en: "TOE-TOE SPECIAL", ru: "ТОЙ-ТОЙ СПЕШЛ" }, family: "OTHERS", category: "B" },
+            { name: { en: "TOE-TOE REVERSE EAGLE", ru: "ТОЙ-ТОЙ ОБР. ИГЛ" }, family: "OTHERS", category: "B" },
+            { name: { en: "BRUSH", ru: "БРАШ" }, family: "OTHERS", category: "D" },
+            { name: { en: "HEEL-TOE SPECIAL", ru: "ХИЛ-ТОЙ СПЕШЛ" }, family: "OTHERS", category: "D" },
+            { name: { en: "EAGLE / EAGLE CROSS", ru: "ИГЛ / ИГЛ КРОСС" }, family: "OTHERS", category: "D" },
+            { name: { en: "SWEEPERS", ru: "СВИПЕРЫ" }, family: "OTHERS", category: "D" },
+            { name: { en: "EIGHT", ru: "ВОСЬМЕРКА" }, family: "OTHERS", category: "E" },
+            { name: { en: "BACK EIGHT", ru: "ВОСЬМЕРКА НАЗАД" }, family: "OTHERS", category: "E" },
+            { name: { en: "CRAZY LEGS", ru: "КРЕЙЗИ ЛЕГС" }, family: "OTHERS", category: "E" },
+            { name: { en: "STROLL / BACK STROLL", ru: "СТРОЛЛ / СТРОЛЛ СПИНОЙ" }, family: "OTHERS", category: "E" },
+            { name: { en: "CRAZY / DOUBLE CRAZY", ru: "КРЕЙЗИ / ДАБЛ КРЕЙЗИ" }, family: "OTHERS", category: "E" },
+            { name: { en: "CHAP-CHAP / X", ru: "ЧАП-ЧАП / ИСК" }, family: "OTHERS", category: "E" },
+            { name: { en: "MEGA SERIES", ru: "МЕГА СЕРИЯ" }, family: "OTHERS", category: "E" },
+            { name: { en: "NELSON / BACK NELSON", ru: "НЕЛЬСОН / НЕЛЬСОН СПИНОЙ" }, family: "OTHERS", category: "E" },
+
             // SITTING
-            "BACK TOE CHRISTIE", "TOE CHRISTIE", "BACK TEAPOT / BACK SUPERMAN", "TEA POT / SUPERMAN", "TOE FOOTGUN",
-            "BACK SITTING COBRA", "BACK CHRISTIE", "SITTING COBRA", "CHRISTIE", "BACK FOOTGUN", "FOOTGUN",
-            "SITTING HEEL-TOE BACK CROSS", "SITTING HEEL-TOE CROSS", "BACK SITTING HEEL-TOE SNAKE", "SITTING HEEL-TOE SNAKE",
-            "SMALL CART / 5 WHEEL SITTING", "SITTING FISH",
+            { name: { en: "BACK TOE CHRISTIE", ru: "НАЗАД ТОЙ КРИСТИ" }, family: "SITTING", category: "A" },
+            { name: { en: "TOE CHRISTIE", ru: "ТОЙ КРИСТИ" }, family: "SITTING", category: "A" },
+            { name: { en: "BACK TEAPOT / BACK SUPERMAN", ru: "ЧАЙНИК СПИНОЙ ВПЕРЕД / СУПЕРМЕН" }, family: "SITTING", category: "B" },
+            { name: { en: "BACK TOE FOOTGUN", ru: "НАЗАД ТОЙ ФУТГАН" }, family: "SITTING", category: "B" },
+            { name: { en: "TEA POT / SUPERMAN", ru: "ЧАЙНИК / СУПЕРМЕН" }, family: "SITTING", category: "B" },
+            { name: { en: "TOE FOOTGUN", ru: "ТОЙ ФУТГАН" }, family: "SITTING", category: "B" },
+            { name: { en: "BACK SITTING COBRA", ru: "СИДЯ НАЗАД КОБРА" }, family: "SITTING", category: "C" },
+            { name: { en: "BACK CHRISTIE", ru: "КРИСТИ СПИНОЙ" }, family: "SITTING", category: "C" },
+            { name: { en: "SITTING COBRA", ru: "СИДЯЧАЯ КОБРА" }, family: "SITTING", category: "C" },
+            { name: { en: "CHRISTIE", ru: "КРИСТИ" }, family: "SITTING", category: "C" },
+            { name: { en: "BACK FOOTGUN", ru: "ФУТГАН СПИНОЙ" }, family: "SITTING", category: "C" },
+            { name: { en: "FOOTGUN", ru: "ФУТГАН" }, family: "SITTING", category: "C" },
+            { name: { en: "SITTING HEEL-TOE BACK CROSS", ru: "СИДЯ ХИЛ-ТОЙ КРОСС СПИНОЙ" }, family: "SITTING", category: "D" },
+            { name: { en: "SITTING HEEL-TOE CROSS", ru: "СИДЯ ХИЛ-ТОЙ КРОСС" }, family: "SITTING", category: "D" },
+            { name: { en: "BACK SITTING HEEL-TOE SNAKE", ru: "СИДЯ ХИЛ-ТОЙ СПИНОЙ" }, family: "SITTING", category: "D" },
+            { name: { en: "SITTING HEEL-TOE SNAKE", ru: "СИДЯ ХИЛ-ТОЙ" }, family: "SITTING", category: "D" },
+            { name: { en: "SMALL CART / 5 WHEEL SITTING", ru: "МАЛЕНЬКАЯ ТЕЛЕЖКА / 5 КОЛЕС СИДЯ" }, family: "SITTING", category: "E" },
+            { name: { en: "SITTING FISH", ru: "СИДЯ ФИШ" }, family: "SITTING", category: "E" },
+
             // JUMPING
-            "FRONT TOE FOOTGUN KAZACHOK", "HEEL WIPER", "TOE WIPER", "FOOTGUN SPIN JUMP", "FOOTGUN WIPER",
-            "BACK KAZACHOK", "KAZACHOK", "KAZACHOK SPIN", "FRONT WIPER", "WIPER", "FOOTSPIN JUMP", "X JUMP", "CRAB CROSS", "CRAB SERIES",
+            { name: { en: "FRONT TOE FOOTGUN KAZACHOK", ru: "ПЕРЕДНИЙ ТОЙ ФУТГАН КАЗАЧОК" }, family: "JUMPING", category: "A" },
+            { name: { en: "HEEL WIPER", ru: "ХИЛ ВАЙПЕР" }, family: "JUMPING", category: "A" },
+            { name: { en: "TOE WIPER", ru: "ТОЙ ВАЙПЕР" }, family: "JUMPING", category: "A" },
+            { name: { en: "FOOTGUN SPIN JUMP", ru: "ФУТГАН СПИН ДЖАМП" }, family: "JUMPING", category: "B" },
+            { name: { en: "FOOTGUN WIPER", ru: "ФУТГАН ВАЙПЕР" }, family: "JUMPING", category: "B" },
+            { name: { en: "BACK KAZACHOK", ru: "НАЗАД КАЗАЧОК" }, family: "JUMPING", category: "B" },
+            { name: { en: "KAZACHOK", ru: "КАЗАЧОК" }, family: "JUMPING", category: "C" },
+            { name: { en: "KAZACHOK SPIN", ru: "КАЗАЧОК СПИН" }, family: "JUMPING", category: "C" },
+            { name: { en: "FRONT WIPER", ru: "ПЕРЕДНИЙ ВАЙПЕР" }, family: "JUMPING", category: "C" },
+            { name: { en: "WIPER", ru: "ВАЙПЕР" }, family: "JUMPING", category: "C" },
+            { name: { en: "SPECIAL JUMPS", ru: "СПЕШЛ ДЖАМПС" }, family: "JUMPING", category: "C" },
+            { name: { en: "FOOTSPIN JUMP", ru: "ФУТСПИН ДЖАМП" }, family: "JUMPING", category: "D" },
+            { name: { en: "X JUMP", ru: "X ДЖАМП" }, family: "JUMPING", category: "E" },
+            { name: { en: "CRAB CROSS", ru: "КРАБ КРЕСТ" }, family: "JUMPING", category: "E" },
+            { name: { en: "CRAB SERIES", ru: "КРАБ СЕРИЯ" }, family: "JUMPING", category: "E" },
+
             // WHEELING
-            "BACKWARD LEAF SERIES", "SIDE / FORWARD LEAF SERIES", "WHEELING SHIFTS / COUNTERSHIFTS SERIES", "WHEELING FLIP / DAYNIGHT SERIES",
-            "BACK WHEELING", "FLAT SHIFTS / COUNTERSHIFTS SERIES", "FORWARD WHEELINGS", "FLAT SFLIP / DAYNIGHT SERIES",
-            "BACK ONE FOOT", "TWO WHEELS BACK CROSS", "TWO WHEELS BACK SNAKE", "TWO WHEELS CROSS", "TWO WHEELS SNAKE",
-            "ONE FOOT", "BACK SNAKE / BACK CROSS", "SNAKE / CROSS", "FISH",
+            { name: { en: "BACKWARD LEAF SERIES", ru: "ЛИСТИК НАЗАД СЕРИЯ" }, family: "WHEELING", category: "A" },
+            { name: { en: "SIDE / FORWARD LEAF SERIES", ru: "БОКОВОЙ / ПЕРЕДНИЙ ЛИСТИК" }, family: "WHEELING", category: "A" },
+            { name: { en: "WHEELING SHIFTS / COUNTERSHIFTS SERIES", ru: "ВИЛИНГ СИФТС / КОУНТЕРСИФТС" }, family: "WHEELING", category: "A" },
+            { name: { en: "SQUARE SERIES", ru: "КВАДРАТ СЕРИЯ" }, family: "WHEELING", category: "A" },
+            { name: { en: "WHEELING FLIP / DAYNIGHT SERIES", ru: "ВИЛИНГ ФЛИП / ДЕЙНАЙТ" }, family: "WHEELING", category: "B" },
+            { name: { en: "FRENCH SHIFT SERIES", ru: "ФРАНЦУЗСКИЕ СИФТЫ" }, family: "WHEELING", category: "B" },
+            { name: { en: "TOE SEWING MACHINE", ru: "НОСОЧНАЯ ШВЕЙНАЯ МАШИНКА" }, family: "WHEELING", category: "B" },
+            { name: { en: "BACK WHEELING", ru: "НАЗАД НА ОДНОМ" }, family: "WHEELING", category: "C" },
+            { name: { en: "FLAT SHIFTS / COUNTERSHIFTS SERIES", ru: "ФЛЭТ СИФТЫ" }, family: "WHEELING", category: "C" },
+            { name: { en: "FORWARD WHEELINGS", ru: "ВПЕРЕД НА ОДНОМ" }, family: "WHEELING", category: "C" },
+            { name: { en: "FLAT SFLIP / DAYNIGHT SERIES", ru: "ФЛЭТ ФЛИП / ДЕЙНАЙТ" }, family: "WHEELING", category: "C" },
+            { name: { en: "BACK ONE FOOT", ru: "НАЗАД НА ОДНОЙ НОГЕ" }, family: "WHEELING", category: "D" },
+            { name: { en: "TWO WHEELS BACK CROSS", ru: "НА ДВУХ КОЛЕСАХ КРЕСТ НАЗАД" }, family: "WHEELING", category: "D" },
+            { name: { en: "TWO WHEELS BACK SNAKE", ru: "НА ДВУХ КОЛЕСАХ ЗМЕЙКА НАЗАД" }, family: "WHEELING", category: "D" },
+            { name: { en: "TWO WHEELS CROSS", ru: "НА ДВУХ КОЛЕСАХ КРЕСТ" }, family: "WHEELING", category: "D" },
+            { name: { en: "TWO WHEELS SNAKE", ru: "НА ДВУХ КОЛЕСАХ ЗМЕЙКА" }, family: "WHEELING", category: "D" },
+            { name: { en: "BACK ONE FOOT (#2)", ru: "НАЗАД НА ОДНОЙ (#2)" }, family: "WHEELING", category: "E" },
+            { name: { en: "ONE FOOT", ru: "НА ОДНОЙ НОГЕ" }, family: "WHEELING", category: "E" },
+            { name: { en: "BACK SNAKE / BACK CROSS", ru: "ЗМЕЙКА / КРЕСТ НАЗАД" }, family: "WHEELING", category: "E" },
+            { name: { en: "SNAKE / CROSS", ru: "ЗМЕЙКА / КРЕСТ" }, family: "WHEELING", category: "E" },
+            { name: { en: "FISH", ru: "РЫБКА" }, family: "WHEELING", category: "E" },
+
             // SPINNING
-            "BACK TOE CHRISTIE SPIN", "TOE CHRISTIE SPIN", "BACK TOE FOOTGUN SPIN", "TOE FOOTGUN SPIN", "BACK SEVEN", "ONE CONE BACK SEVEN",
-            "ONE CONE TOE FOOTGUN SPIN", "SEVEN", "ONE CONE SEVEN", "FLAT BACK SEVEN", "FLAT SEVEN", "ONE CONE BACK KOREAN SPIN",
-            "BACK KOREAN SPIN", "KOREAN SPIN", "BACK TWO WHEELS SPIN", "TWO WHEELS SPIN", "BACK J-TURN", "J-TURN", "TWO FEET SPIN", "TOTAL CROSS",
-            "ITALIEN / VOLT", "CRAZY SUN / MEXICAN", "SUN / MABROUK"
+            { name: { en: "BACK TOE CHRISTIE SPIN", ru: "НАЗАД ТОЙ КРИСТИ СПИН" }, family: "SPINNING", category: "A" },
+            { name: { en: "TOE CHRISTIE SPIN", ru: "ТОЙ КРИСТИ СПИН" }, family: "SPINNING", category: "A" },
+            { name: { en: "BACK TOE FOOTGUN SPIN", ru: "НАЗАД ТОЙ ФУТГАН СПИН" }, family: "SPINNING", category: "A" },
+            { name: { en: "TOE FOOTGUN SPIN", ru: "ТОЙ ФУТГАН СПИН" }, family: "SPINNING", category: "A" },
+            { name: { en: "BACK SEVEN", ru: "НАЗАД СЕВЕН" }, family: "SPINNING", category: "A" },
+            { name: { en: "ONE CONE BACK SEVEN", ru: "ВОКРУГ КОНУСА НАЗАД СЕВЕН" }, family: "SPINNING", category: "A" },
+            { name: { en: "ONE CONE TOE FOOTGUN SPIN", ru: "ВОКРУГ КОНУСА ТОЙ ФУТГАН СПИН" }, family: "SPINNING", category: "A" },
+            { name: { en: "SEVEN", ru: "СЕВЕН" }, family: "SPINNING", category: "A" },
+            { name: { en: "ONE CONE SEVEN", ru: "ВОКРУГ КОНУСА СЕВЕН" }, family: "SPINNING", category: "A" },
+            { name: { en: "FLAT BACK SEVEN", ru: "ФЛЭТ НАЗАД СЕВЕН" }, family: "SPINNING", category: "B" },
+            { name: { en: "FLAT SEVEN", ru: "ФЛЭТ СЕВЕН" }, family: "SPINNING", category: "B" },
+            { name: { en: "ONE CONE BACK KOREAN SPIN", ru: "ВОКРУГ КОНУСА НАЗАД КОРЕЙСКИЙ" }, family: "SPINNING", category: "B" },
+            { name: { en: "BACK KOREAN SPIN", ru: "НАЗАД КОРЕЙСКИЙ СПИН" }, family: "SPINNING", category: "B" },
+            { name: { en: "ONE CONE KOREAN SPIN", ru: "ВОКРУГ КОНУСА КОРЕЙСКИЙ" }, family: "SPINNING", category: "C" },
+            { name: { en: "KOREAN SPIN", ru: "КОРЕЙСКИЙ СПИН" }, family: "SPINNING", category: "C" },
+            { name: { en: "BACK TWO WHEELS SPIN", ru: "НА ДВУХ КОЛЕСАХ НАЗАД СПИН" }, family: "SPINNING", category: "C" },
+            { name: { en: "TWO WHEELS SPIN", ru: "НА ДВУХ КОЛЕСАХ СПИН" }, family: "SPINNING", category: "C" },
+            { name: { en: "BACK J-TURN", ru: "НАЗАД J-ТЕРН" }, family: "SPINNING", category: "C" },
+            { name: { en: "J-TURN", ru: "J-ТЕРН" }, family: "SPINNING", category: "D" },
+            { name: { en: "TWO FEET SPIN", ru: "НА ДВУХ НОГАХ СПИН" }, family: "SPINNING", category: "D" },
+            { name: { en: "TOTAL CROSS", ru: "ТОТАЛ КРЕСТ" }, family: "SPINNING", category: "D" },
+            { name: { en: "ITALIEN / VOLT", ru: "ИТАЛЬЯНЕЦ / ВОЛЬТ" }, family: "SPINNING", category: "E" },
+            { name: { en: "CRAZY SUN / MEXICAN", ru: "КРЕЙЗИ СОЛНЦЕ / МЕХИКАН" }, family: "SPINNING", category: "E" },
+            { name: { en: "SUN / MABROUK", ru: "СОЛНЦЕ / МАБРУК" }, family: "SPINNING", category: "E" }
         ];
+
+        const families = ["OTHERS", "SITTING", "JUMPING", "WHEELING", "SPINNING"];
+        const categories = ["A", "B", "C", "D", "E"];
+
+        // Тексты интерфейса
+        const uiText = {
+            ru: {
+                modalTitle: "Настройки",
+                langTitle: "Язык / Language",
+                familiesTitle: "Семейства (Families)",
+                categoriesTitle: "Категории (Categories)",
+                closeModal: "Готово",
+                hint: "Нажми, чтобы крутить",
+                emptyWarning: "Выключены все фильтры! Включи хотя бы что-нибудь в настройках ⚙️",
+                catPrefix: "Категория "
+            },
+            en: {
+                modalTitle: "Settings",
+                langTitle: "Language / Язык",
+                familiesTitle: "Families",
+                categoriesTitle: "Categories",
+                closeModal: "Done",
+                hint: "Tap to spin",
+                emptyWarning: "All filters are disabled! Enable at least something in settings ⚙️",
+                catPrefix: "Category "
+            }
+        };
+
+        let disabledFamilies = JSON.parse(localStorage.getItem('g4s_disabled_families') || '[]');
+        let disabledCategories = JSON.parse(localStorage.getItem('g4s_disabled_categories') || '[]');
+
+        function setLanguage(lang) {
+            currentLang = lang;
+            localStorage.setItem('g4s_lang', lang);
+            
+            // Кнопки языка
+            document.getElementById('langRu').className = `lang-btn ${lang === 'ru' ? 'active' : ''}`;
+            document.getElementById('langEn').className = `lang-btn ${lang === 'en' ? 'active' : ''}`;
+
+            // Тексты интерфейса
+            document.getElementById('modalTitle').textContent = uiText[lang].modalTitle;
+            document.getElementById('langTitle').textContent = uiText[lang].langTitle;
+            document.getElementById('familiesTitle').textContent = uiText[lang].familiesTitle;
+            document.getElementById('categoriesTitle').textContent = uiText[lang].categoriesTitle;
+            document.getElementById('closeModal').textContent = uiText[lang].closeModal;
+            document.getElementById('hint').textContent = uiText[lang].hint;
+            document.getElementById('emptyWarning').textContent = uiText[lang].emptyWarning;
+
+            renderFilters();
+            initReel();
+        }
+
+        const familiesFilterEl = document.getElementById('familiesFilter');
+        const categoriesFilterEl = document.getElementById('categoriesFilter');
+
+        function renderFilters() {
+            familiesFilterEl.innerHTML = '';
+            families.forEach(fam => {
+                const isExcluded = disabledFamilies.includes(fam);
+                const div = document.createElement('div');
+                div.className = `filter-item ${isExcluded ? 'disabled' : ''}`;
+                div.innerHTML = `<span>${fam}</span> <span>${isExcluded ? '✕' : '✓'}</span>`;
+                div.onclick = () => {
+                    if (isExcluded) {
+                        disabledFamilies = disabledFamilies.filter(f => f !== fam);
+                    } else {
+                        disabledFamilies.push(fam);
+                    }
+                    localStorage.setItem('g4s_disabled_families', JSON.stringify(disabledFamilies));
+                    renderFilters();
+                    initReel();
+                };
+                familiesFilterEl.appendChild(div);
+            });
+
+            categoriesFilterEl.innerHTML = '';
+            categories.forEach(cat => {
+                const isExcluded = disabledCategories.includes(cat);
+                const div = document.createElement('div');
+                div.className = `filter-item ${isExcluded ? 'disabled' : ''}`;
+                div.innerHTML = `<span>${uiText[currentLang].catPrefix}${cat}</span> <span>${isExcluded ? '✕' : '✓'}</span>`;
+                div.onclick = () => {
+                    if (isExcluded) {
+                        disabledCategories = disabledCategories.filter(c => c !== cat);
+                    } else {
+                        disabledCategories.push(cat);
+                    }
+                    localStorage.setItem('g4s_disabled_categories', JSON.stringify(disabledCategories));
+                    renderFilters();
+                    initReel();
+                };
+                categoriesFilterEl.appendChild(div);
+            });
+        }
+
+        // Управление модалкой
+        const modal = document.getElementById('settingsModal');
+        document.getElementById('settingsBtn').onclick = (e) => {
+            e.stopPropagation();
+            modal.classList.add('open');
+        };
+        document.getElementById('closeModal').onclick = () => {
+            modal.classList.remove('open');
+        };
 
         const reel = document.getElementById('reel');
         const hint = document.getElementById('hint');
+        const emptyWarning = document.getElementById('emptyWarning');
 
         const ITEM_HEIGHT = 60;
         let isSpinning = false;
-
-        const REPEATS = 101; // Нечетное число, чтобы середина была точно началом паттерна
+        let activeTricks = [];
         let items = [];
-        for (let i = 0; i < REPEATS; i++) {
-            items = items.concat(tricks);
+        let middleBlock = 0;
+        let currentIndex = 0;
+
+        function getFilteredTricks() {
+            return allTricks.filter(t => !disabledFamilies.includes(t.family) && !disabledCategories.includes(t.category));
         }
 
-        function renderItems() {
+        function initReel() {
+            activeTricks = getFilteredTricks();
+
+            if (activeTricks.length === 0) {
+                emptyWarning.style.display = 'block';
+                reel.style.display = 'none';
+                hint.style.display = 'none';
+                return;
+            } else {
+                emptyWarning.style.display = 'none';
+                reel.style.display = 'flex';
+                hint.style.display = 'block';
+            }
+
+            const REPEATS = 101;
+            items = [];
+            for (let i = 0; i < REPEATS; i++) {
+                items = items.concat(activeTricks.map(t => t.name[currentLang]));
+            }
+
             reel.innerHTML = '';
-            items.forEach((trick) => {
+            items.forEach((trickName) => {
                 const div = document.createElement('div');
                 div.className = 'slot-item';
-                div.textContent = trick;
+                div.textContent = trickName;
                 reel.appendChild(div);
             });
-        }
-        renderItems();
 
-        // Ставим строго в середину большого массива
-        const middleBlock = Math.floor(REPEATS / 2);
-        let currentIndex = middleBlock * tricks.length;
+            middleBlock = Math.floor(REPEATS / 2);
+            currentIndex = middleBlock * activeTricks.length;
+            updatePosition(currentIndex, false);
+        }
 
         function updatePosition(index, animate = false) {
             if (animate) {
@@ -212,7 +594,8 @@
             }
         }
 
-        updatePosition(currentIndex, false);
+        // Инициализация при старте
+        setLanguage(currentLang);
 
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         function playSound() {
@@ -231,24 +614,25 @@
         }
 
         function spin() {
-            if (isSpinning) return;
+            if (isSpinning || modal.classList.contains('open')) return;
+            activeTricks = getFilteredTricks();
+            if (activeTricks.length === 0) return;
+
             isSpinning = true;
             hint.style.opacity = '0';
 
             if (tg.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
 
-            // Перед каждым крутом возвращаем индекс в центр без анимации, чтобы элементы никогда не кончались
-            const currentTrickOffset = currentIndex % tricks.length;
-            currentIndex = middleBlock * tricks.length + currentTrickOffset;
+            const currentTrickOffset = currentIndex % activeTricks.length;
+            currentIndex = middleBlock * activeTricks.length + currentTrickOffset;
             updatePosition(currentIndex, false);
 
-            const randomTrickIndex = Math.floor(Math.random() * tricks.length);
+            const randomTrickIndex = Math.floor(Math.random() * activeTricks.length);
             let distance = randomTrickIndex - currentTrickOffset;
-            if (distance <= 0) distance += tricks.length;
+            if (distance <= 0) distance += activeTricks.length;
 
-            const targetIndex = currentIndex + distance + (tricks.length * 5);
+            const targetIndex = currentIndex + distance + (activeTricks.length * 5);
 
-            // Небольшая задержка, чтобы браузер успел применить сброс позиции без анимации
             setTimeout(() => {
                 updatePosition(targetIndex, true);
 
@@ -285,7 +669,11 @@
             }, 50);
         }
 
-        document.body.addEventListener('click', spin);
+        document.body.addEventListener('click', (e) => {
+            if (!modal.contains(e.target) && e.target !== document.getElementById('settingsBtn')) {
+                spin();
+            }
+        });
     </script>
 </body>
 </html>
